@@ -5,7 +5,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2024, Farid."
 #property link      "https://github.com/Far-1d"
-#property version   "1.00"
+#property version   "1.10"
 
 //--- import library
 #include <trade/trade.mqh>
@@ -22,8 +22,7 @@ input string unfavored_points    = "10 100";             // wrong side gap point
 input string unfavored_percent   = "40 0";               // wrong side gap percent %
 
 input group "Position Config";
-input int Magic            = 2222;
-input int entry_distance   = 10;                     // entry distance in pip
+input int Magic            = 3333;
 enum lot_method {
    for_x_dollar_balance,
    constant
