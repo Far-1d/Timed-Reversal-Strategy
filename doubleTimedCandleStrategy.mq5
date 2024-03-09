@@ -5,7 +5,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2024, Farid."
 #property link      "https://github.com/Far-1d"
-#property version   "1.10"
+#property version   "1.20"
 
 //--- import library
 #include <trade/trade.mqh>
@@ -132,6 +132,22 @@ void OnTick(){
       totalbars = bars;
    }
    
+   if (PositionsTotal()>0){
+      for (int i=0; i<PositionsTotal(); i++){
+         ulong tikt = PositionGetTicket(i);
+         if (PositionSelectByTicket(tikt)){
+            //--- checking for risk free opportunity
+            riskfree(tikt);
+            
+            if (PositionGetInteger(POSITION_MAGIC) == Magic && PositionGetString(POSITION_COMMENT) == "trail"){
+               string type;
+               if (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) type = "BUY";
+               else if (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_SELL) type = "SELL";
+               trailing(tikt, type);
+            }
+         }
+      }
+   }
 }
 //+------------------------------------------------------------------+
 
@@ -555,4 +571,79 @@ bool place_order(string type, double lots, double sl, double tp, string comment=
       
    }
    return false;
+}
+
+
+//+------------------------------------------------------------------+
+//| trailing function                                                |
+//+------------------------------------------------------------------+
+void trailing(ulong tikt , string type){
+   PositionSelectByTicket(tikt);
+   double entry         = PositionGetDouble(POSITION_PRICE_OPEN);
+   double curr_sl       = PositionGetDouble(POSITION_SL);
+   double curr_tp       = PositionGetDouble(POSITION_TP); 
+   double ask           = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+   double bid           = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+   
+   if(type == "BUY"){
+      if (ask > PositionGetDouble(POSITION_PRICE_OPEN)+(tp2_distance*10*_Point)){
+         if (ask-curr_sl > trail_pip*10*_Point){
+            trade.PositionModify(tikt, ask - trail_pip*10*_Point, curr_tp);
+            Print("changed buy trailed to ", ask - trail_pip*10*_Point);
+         }
+      }
+   } else {
+      if (bid < PositionGetDouble(POSITION_PRICE_OPEN)-(tp2_distance*10*_Point)){
+         if (curr_sl-bid > trail_pip*10*_Point){
+            trade.PositionModify(tikt, bid + trail_pip*10*_Point, curr_tp);
+            Print("changed sell trailed to ", bid + trail_pip*10*_Point);
+         }
+      }
+   }
+   
+}
+
+//+----------------------------------------------------------------------+
+//| this function riskfrees positions no matter if trailing is active  |
+//+----------------------------------------------------------------------+
+void riskfree(ulong tikt){
+   if (use_rf) {
+      //PositionSelectByTicket(tikt)
+      double
+         entry = PositionGetDouble(POSITION_PRICE_OPEN),
+         tp = PositionGetDouble(POSITION_TP),
+         sl = PositionGetDouble(POSITION_SL),
+         ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK),
+         bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+      long pos_type = PositionGetInteger(POSITION_TYPE);
+      
+      double comission_price = calculate_comission_for_riskfree(tikt);
+     
+      if (pos_type == POSITION_TYPE_BUY){
+         if (ask - entry >= rf_distance*10*_Point && sl < entry){
+            trade.PositionModify(tikt, entry+comission_price, tp);
+            Print("buy position riskfreed to ", entry);
+         }
+      }
+      
+      if (pos_type == POSITION_TYPE_SELL){
+         if (entry - bid >= rf_distance*10*_Point && sl > entry){
+            trade.PositionModify(tikt, entry-comission_price, tp);
+            Print("sell position riskfreed to ", entry);
+         }
+      }
+   }
+}
+
+
+//--- calculate the price change needed to make for the comission fee , riskfree must have zero loss
+double calculate_comission_for_riskfree(ulong tikt){
+   HistoryDealSelect(tikt);
+   double comission  = HistoryDealGetDouble(tikt, DEAL_COMMISSION);
+   double volume     = HistoryDealGetDouble(tikt, DEAL_VOLUME);
+   double tick_value = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_VALUE);
+   
+   double points = MathAbs((2*comission)/(volume*tick_value));
+   
+   return NormalizeDouble(points*_Point, _Digits);
 }
