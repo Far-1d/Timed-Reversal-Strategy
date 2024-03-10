@@ -13,7 +13,6 @@ CTrade trade;
 
 //--- inputs
 input group "Strategy Config";
-input int daily_repetitions      = 2;                    // number of candles to check each day
 input int first_candle_body      = 30;                   // first candle body in points
 input string time_values         = "10:00 16:00";        // time of candles in a string(use space between times)
 input string favored_gap_points  = "5 10 30 100";        // gap points (from 0 to first value -> lot*first percent)
@@ -85,12 +84,6 @@ int OnInit(){
       return (INIT_FAILED);
    }
    
-   if (ArraySize(times) != daily_repetitions)
-   {
-      Print("number of candles and time inputs are mismatched");
-      return (INIT_FAILED);
-   }
-   
    trade.SetExpertMagicNumber(Magic);
    return(INIT_SUCCEEDED);
 }
@@ -114,7 +107,7 @@ void OnTick(){
    if (totalbars != bars)
    {
       //--- check time of second candle
-      for (int i=0; i<daily_repetitions; i++)
+      for (int i=0; i<ArraySize(times); i++)
       {
          if (iTime(_Symbol, PERIOD_CURRENT, 1) == StringToTime(times[i]))
          {
