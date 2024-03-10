@@ -92,7 +92,7 @@ int OnInit(){
 //| Expert deinitialization function                                 |
 //+------------------------------------------------------------------+
 void OnDeinit(const int reason){
-   
+
 }
 
 //+------------------------------------------------------------------+
@@ -109,7 +109,14 @@ void OnTick(){
       //--- check time of second candle
       for (int i=0; i<ArraySize(times); i++)
       {
-         if (iTime(_Symbol, PERIOD_CURRENT, 1) == StringToTime(times[i]))
+         //--- if user selects 23:00 there is a problem which compares 23:00 of yesterday with 23:00 of today which are never equal
+         int compensate = 0;
+         if (times[i] == "23:00" && Period() == PERIOD_H1)
+         {
+            compensate = PeriodSeconds(PERIOD_D1);
+         }
+         
+         if (iTime(_Symbol, PERIOD_CURRENT, 1) == StringToTime(times[i]) - compensate )
          {
             if (check_body())
             {
