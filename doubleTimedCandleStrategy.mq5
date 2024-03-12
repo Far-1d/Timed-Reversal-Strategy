@@ -5,7 +5,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2024, Farid."
 #property link      "https://github.com/Far-1d"
-#property version   "1.20"
+#property version   "1.40"
 
 //--- import library
 #include <trade/trade.mqh>
@@ -14,6 +14,7 @@ CTrade trade;
 //--- inputs
 input group "Strategy Config";
 input int first_candle_body      = 30;                   // first candle body in points
+input bool enable_time_filter    = false;                // use time filter?
 input string time_values         = "10:00 16:00";        // time of candles in a string(use space between times)
 input string favored_gap_points  = "5 10 30 100";        // gap points (from 0 to first value -> lot*first percent)
 input string favored_gap_percent = "40 70 100 200";      // gap percent %
@@ -116,18 +117,38 @@ void OnTick(){
             compensate = PeriodSeconds(PERIOD_D1);
          }
          
-         if (iTime(_Symbol, PERIOD_CURRENT, 1) == StringToTime(times[i]) - compensate )
+         if (enable_time_filter)
          {
-            if (check_body())
+            if (iTime(_Symbol, PERIOD_CURRENT, 1) == StringToTime(times[i]) - compensate )
             {
-               //--- calculate lot size
-               if (lot_type == 1) lot_size = lot_value;
-               else lot_size = lot_value*(AccountInfoDouble(ACCOUNT_BALANCE)/dollar_balance);
-               Print("body size is ok");
-               //--- check gap and open positions
-               check_gap();
-            }else Print("small body size");
+               Print("--------------------------------------");
+               if (check_body())
+               {
+                  //--- calculate lot size
+                  if (lot_type == 1) lot_size = lot_value;
+                  else lot_size = lot_value*(AccountInfoDouble(ACCOUNT_BALANCE)/dollar_balance);
+
+                  Print("body size is ok");
+                  //--- check gap and open positions
+                  check_gap();
+               }else Print("small body size");
+            }
          }
+         else 
+         {
+            Print("--------------------------------------");
+            if (check_body())
+               {
+                  //--- calculate lot size
+                  if (lot_type == 1) lot_size = lot_value;
+                  else lot_size = lot_value*(AccountInfoDouble(ACCOUNT_BALANCE)/dollar_balance);
+                  
+                  Print("body size is ok");
+                  //--- check gap and open positions
+                  check_gap();
+               }else Print("small body size");
+         }
+         
       }
       totalbars = bars;
    }
@@ -193,6 +214,11 @@ void check_gap(){
             Print("bearish candle with +gap :", gap, "and fgp: ", fgp_1[i]);
             if (( double )fgp_1[i] > gap)
             {
+               if (( int )fgp_2[i] == 0)
+               {
+                  Print("lot size coefficient is zero. trade is not opened");
+                  break;
+               }
                open_position("BUY", ( int )fgp_2[i]);
                break;
             }
@@ -206,17 +232,14 @@ void check_gap(){
             Print("bearish candle with -gap :", MathAbs(gap), "and ugp: ", ugp_1[i]);
             if (( double )ugp_1[i] > MathAbs(gap))
             {
-               Print("buying bearish with -gap");
-               if (( double )ugp_2[i] != 0)
-               {
-                  open_position("BUY", ( int )ugp_2[i]);
-                  break;
-               }
-               else
+               if (( int )ugp_2[i] == 0)
                {
                   Print("lot size coefficient is zero. trade is not opened");
                   break;
                }
+               Print("buying bearish with -gap");
+               open_position("BUY", ( int )ugp_2[i]);
+               break;
             }
          }
       }
@@ -235,6 +258,11 @@ void check_gap(){
             Print("bullish candle with +gap :", gap, "and fgp: ", fgp_1[i]);
             if (( double )fgp_1[i] > gap)
             {
+               if (( int )fgp_2[i] == 0)
+               {
+                  Print("lot size coefficient is zero. trade is not opened");
+                  break;
+               }
                open_position("SELL", ( int )fgp_2[i]);
                break;
             }
@@ -248,16 +276,13 @@ void check_gap(){
             Print("bullish candle with -gap :", MathAbs(gap), "and ugp: ", ugp_1[i]);
             if (( double )ugp_1[i] > MathAbs(gap))
             {
-               if (( double )ugp_2[i] != 0)
-               {
-                  open_position("SELL", ( int )ugp_2[i]);
-                  break;
-               }
-               else
+               if (( int )ugp_2[i] == 0)
                {
                   Print("lot size coefficient is zero. trade is not opened");
                   break;
                }
+               open_position("SELL", ( int )ugp_2[i]);
+               break;
             }
          }
       }
