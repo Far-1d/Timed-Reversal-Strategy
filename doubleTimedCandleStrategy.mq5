@@ -118,8 +118,14 @@ void OnTick(){
             compensate = PeriodSeconds(PERIOD_D1);
          }
          
+         //--- check weekend and increase compensate
+         MqlDateTime time_struct;
+         TimeToStruct(StringToTime(times[i]) - compensate, time_struct);
+         if (time_struct.day_of_week == 0) compensate *= 3;
+         
          if (enable_time_filter)
          {
+            Print(">>>>>>>>  ", iTime(_Symbol, PERIOD_CURRENT, 1), "    ", StringToTime(times[i]), "    ", TimeToString(StringToTime(times[i])-compensate) );
             if (iTime(_Symbol, PERIOD_CURRENT, 1) == StringToTime(times[i]) - compensate )
             {
                Print("--------------------------------------");
