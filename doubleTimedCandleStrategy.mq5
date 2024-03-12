@@ -108,24 +108,52 @@ void OnTick(){
    
    if (totalbars != bars)
    {
-      //--- check time of second candle
-      for (int i=0; i<ArraySize(times); i++)
+      
+      //--- check for gaps to draw arrows
+      double   
+         open_1  = iOpen(_Symbol, PERIOD_CURRENT, 1),
+         close_1 = iClose(_Symbol, PERIOD_CURRENT, 1),
+         open_0  = iOpen(_Symbol, PERIOD_CURRENT, 0);
+      double gap = 0;
+      //--- first candle bearish, buying 
+      if (open_1 > close_1)
       {
-         //--- if user selects 23:00 there is a problem which compares 23:00 of yesterday with 23:00 of today which are never equal
-         int compensate = 0;
-         if (times[i] == "23:00" && Period() == PERIOD_H1)
+         gap = round((close_1 - open_0)/_Point);
+         // draw arrow if gap is big enough
+         if (gap >= min_gap_for_draw)
          {
-            compensate = PeriodSeconds(PERIOD_D1);
+            draw_flash("BUY");
          }
-         
-         //--- check weekend and increase compensate
-         MqlDateTime time_struct;
-         TimeToStruct(StringToTime(times[i]) - compensate, time_struct);
-         if (time_struct.day_of_week == 0) compensate *= 3;
-         
-         if (enable_time_filter)
+      }
+      else 
+      {
+         gap = round((open_0 - close_1)/_Point);
+         // draw arrow if gap is big enough
+         if (gap >= min_gap_for_draw)
          {
-            Print(">>>>>>>>  ", iTime(_Symbol, PERIOD_CURRENT, 1), "    ", StringToTime(times[i]), "    ", TimeToString(StringToTime(times[i])-compensate) );
+            draw_flash("SELL");
+         }
+      }
+      
+      
+      
+      if (enable_time_filter)
+      {
+         //--- check time of second candle
+         for (int i=0; i<ArraySize(times); i++)
+         {
+            //--- if user selects 23:00 there is a problem which compares 23:00 of yesterday with 23:00 of today which are never equal
+            int compensate = 0;
+            if (times[i] == "23:00" && Period() == PERIOD_H1)
+            {
+               compensate = PeriodSeconds(PERIOD_D1);
+            }
+            
+            //--- check weekend and increase compensate
+            MqlDateTime time_struct;
+            TimeToStruct(StringToTime(times[i]) - compensate, time_struct);
+            if (time_struct.day_of_week == 0) compensate *= 3;
+            
             if (iTime(_Symbol, PERIOD_CURRENT, 1) == StringToTime(times[i]) - compensate )
             {
                Print("--------------------------------------");
@@ -141,25 +169,27 @@ void OnTick(){
                }else Print("small body size");
             }
          }
-         else 
-         {
-            Print("--------------------------------------");
-            if (check_body())
-               {
-                  //--- calculate lot size
-                  if (lot_type == 1) lot_size = lot_value;
-                  else lot_size = lot_value*(AccountInfoDouble(ACCOUNT_BALANCE)/dollar_balance);
-                  
-                  Print("body size is ok");
-                  //--- check gap and open positions
-                  check_gap();
-               }else Print("small body size");
-         }
-         
       }
+      else 
+      {
+         Print("--------------------------------------");
+         if (check_body())
+         {
+            //--- calculate lot size
+            if (lot_type == 1) lot_size = lot_value;
+            else lot_size = lot_value*(AccountInfoDouble(ACCOUNT_BALANCE)/dollar_balance);
+            
+            Print("body size is ok");
+            //--- check gap and open positions
+            check_gap();
+         }else Print("small body size");
+      }
+         
       totalbars = bars;
    }
    
+   
+   //--- trail and risk free part 
    if (PositionsTotal()>0){
       for (int i=0; i<PositionsTotal(); i++){
          ulong tikt = PositionGetTicket(i);
@@ -213,21 +243,15 @@ void check_gap(){
    {
       double gap = round((close_1 - open_0)/_Point);
       
-      // draw arrow if gap is big enough
-      if (gap >= min_gap_for_draw)
-      {
-         draw_flash("BUY");
-      }
-      
       Print("bearish candle , must buy, gap: ", gap);
       if (gap > 0)
       {  
          //--- match lot size with gap size
          for (int i=0; i<ArraySize(fgp_1); i++)
          {
-            Print("bearish candle with +gap :", gap, "and fgp: ", fgp_1[i]);
             if (( double )fgp_1[i] > gap)
             {
+               Print("Favored gap percent: ", fgp_2[i]);
                if (( int )fgp_2[i] == 0)
                {
                   Print("lot size coefficient is zero. trade is not opened");
@@ -243,9 +267,9 @@ void check_gap(){
          //--- match lot size with gap size
          for (int i=0; i<ArraySize(ugp_1); i++)
          {
-            Print("bearish candle with -gap :", MathAbs(gap), "and ugp: ", ugp_1[i]);
             if (( double )ugp_1[i] > MathAbs(gap))
             {
+               Print("Unfavored gap percent: ", ugp_2[i]);
                if (( int )ugp_2[i] == 0)
                {
                   Print("lot size coefficient is zero. trade is not opened");
@@ -263,21 +287,15 @@ void check_gap(){
    {
       double gap = round((open_0 - close_1)/_Point);
       
-      // draw arrow if gap is big enough
-      if (gap >= min_gap_for_draw)
-      {
-         draw_flash("BUY");
-      }
-      
       Print("bullish candle , must sell, gap: ", gap);
       if (gap > 0)
       {  
          //--- match lot size with gap size
          for (int i=0; i<ArraySize(fgp_1); i++)
          {
-            Print("bullish candle with +gap :", gap, "and fgp: ", fgp_1[i]);
             if (( double )fgp_1[i] > gap)
             {
+               Print("Favored gap percent: ", fgp_2[i]);
                if (( int )fgp_2[i] == 0)
                {
                   Print("lot size coefficient is zero. trade is not opened");
@@ -293,9 +311,9 @@ void check_gap(){
          //--- match lot size with gap size
          for (int i=0; i<ArraySize(ugp_1); i++)
          {  
-            Print("bullish candle with -gap :", MathAbs(gap), "and ugp: ", ugp_1[i]);
             if (( double )ugp_1[i] > MathAbs(gap))
             {
+               Print("Unfavored gap percent: ", ugp_2[i]);
                if (( int )ugp_2[i] == 0)
                {
                   Print("lot size coefficient is zero. trade is not opened");
@@ -320,14 +338,14 @@ void draw_flash(string type){
    if (type == "BUY")
    {
       double price = iLow(_Symbol, PERIOD_CURRENT, 1) - 100*_Point;
-      ObjectCreate(0, obj_name, OBJ_ARROW_UP, 0, TimeCurrent(), price);
+      ObjectCreate(0, obj_name, OBJ_ARROW_UP, 0, iTime(_Symbol, PERIOD_CURRENT, 1), price);
       ObjectSetInteger(0, obj_name, OBJPROP_COLOR, clrChartreuse);
       ObjectSetInteger(0, obj_name, OBJPROP_WIDTH, 4);
    }
    else
    {
       double price = iHigh(_Symbol, PERIOD_CURRENT, 1) + 100*_Point;
-      ObjectCreate(0, obj_name, OBJ_ARROW_DOWN, 0, TimeCurrent(), price);
+      ObjectCreate(0, obj_name, OBJ_ARROW_DOWN, 0, iTime(_Symbol, PERIOD_CURRENT, 1), price);
       ObjectSetInteger(0, obj_name, OBJPROP_COLOR, clrTomato);
       ObjectSetInteger(0, obj_name, OBJPROP_WIDTH, 4);
    }
