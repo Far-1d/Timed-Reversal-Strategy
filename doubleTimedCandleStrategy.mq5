@@ -20,6 +20,7 @@ input string favored_gap_points  = "5 10 30 100";        // gap points (from 0 t
 input string favored_gap_percent = "40 70 100 200";      // gap percent %
 input string unfavored_points    = "10 100";             // wrong side gap points
 input string unfavored_percent   = "40 0";               // wrong side gap percent %
+input int min_gap_for_draw       = 10;                   // minimum gap size (point) to draw arrow
 
 input group "Position Config";
 input int Magic            = 3333;
@@ -205,6 +206,13 @@ void check_gap(){
    if (open_1 > close_1)
    {
       double gap = round((close_1 - open_0)/_Point);
+      
+      // draw arrow if gap is big enough
+      if (gap >= min_gap_for_draw)
+      {
+         draw_flash("BUY");
+      }
+      
       Print("bearish candle , must buy, gap: ", gap);
       if (gap > 0)
       {  
@@ -238,7 +246,6 @@ void check_gap(){
                   break;
                }
                Print("buying bearish with -gap");
-               open_position("BUY", ( int )ugp_2[i]);
                break;
             }
          }
@@ -249,6 +256,13 @@ void check_gap(){
    if (open_1 < close_1)
    {
       double gap = round((open_0 - close_1)/_Point);
+      
+      // draw arrow if gap is big enough
+      if (gap >= min_gap_for_draw)
+      {
+         draw_flash("BUY");
+      }
+      
       Print("bullish candle , must sell, gap: ", gap);
       if (gap > 0)
       {  
@@ -286,6 +300,30 @@ void check_gap(){
             }
          }
       }
+   }
+}
+
+
+//+------------------------------------------------------------------+
+//| draw flash of gaps that open position                            |
+//+------------------------------------------------------------------+
+void draw_flash(string type){
+   string obj_name = "";
+   StringConcatenate(obj_name, "ARROW-", type, "-", TimeToString(TimeCurrent()));
+   
+   if (type == "BUY")
+   {
+      double price = iLow(_Symbol, PERIOD_CURRENT, 1) - 100*_Point;
+      ObjectCreate(0, obj_name, OBJ_ARROW_UP, 0, TimeCurrent(), price);
+      ObjectSetInteger(0, obj_name, OBJPROP_COLOR, clrChartreuse);
+      ObjectSetInteger(0, obj_name, OBJPROP_WIDTH, 4);
+   }
+   else
+   {
+      double price = iHigh(_Symbol, PERIOD_CURRENT, 1) + 100*_Point;
+      ObjectCreate(0, obj_name, OBJ_ARROW_DOWN, 0, TimeCurrent(), price);
+      ObjectSetInteger(0, obj_name, OBJPROP_COLOR, clrTomato);
+      ObjectSetInteger(0, obj_name, OBJPROP_WIDTH, 4);
    }
 }
 
